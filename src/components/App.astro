@@ -1,0 +1,293 @@
+---
+// The whole site is one screen that changes state. Every address (/, /work/, /work/<project>/,
+// /about/, /contact/) is built as this same screen, already in the right state, so links, reloads
+// and the Back button all work. In the browser, src/scripts/app.ts moves between states.
+import '@fontsource-variable/instrument-sans/wght.css';
+import '../styles/global.css';
+import fontLatin from '@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url';
+import fontLatinExt from '@fontsource-variable/instrument-sans/files/instrument-sans-latin-ext-wght-normal.woff2?url';
+import { getCollection } from 'astro:content';
+import { Picture } from 'astro:assets';
+import { site } from '../data/site';
+import { carousel, carouselStyle, pad2, scatterStyle } from '../lib/layout';
+import About from './About.astro';
+import Icon from './Icon.astro';
+import Project from './Project.astro';
+
+type View = 'home' | 'work' | 'project' | 'about' | 'contact';
+interface Props {
+  view: View;
+  slug?: string;
+  // A dead address: shows the home screen with a "nothing here" message and plain links.
+  lost?: boolean;
+}
+const { view, slug, lost = false } = Astro.props;
+
+const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const n = projects.length;
+const idx = Math.max(
+  0,
+  projects.findIndex((p) => p.id === slug),
+);
+const cur = projects[idx];
+const next = projects[(idx + 1) % n];
+const count = `${pad2(idx + 1)} / ${pad2(n)}`;
+
+const title = lost
+  ? `Nothing here — ${site.name}`
+  : view === 'project'
+    ? `${cur.data.title} — ${site.name}`
+    : site.titles[view];
+const description = view === 'project' ? cur.data.summary : site.description;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL('/og.png', Astro.site).href;
+
+const openSeg = view === 'work' ? 'pager' : view === 'project' ? 'proj' : 'menu';
+const farOff = !(view === 'home' || view === 'work');
+
+const appData = {
+  name: site.name,
+  hello: site.hello,
+  lines: site.lines,
+  titles: site.titles,
+  projects: projects.map((p) => ({ slug: p.id, short: p.data.short, title: p.data.title })),
+};
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: site.name,
+  jobTitle: 'Product designer',
+  url: Astro.site?.href,
+  sameAs: [site.linkedin],
+  address: { '@type': 'PostalAddress', addressLocality: 'Timișoara', addressCountry: 'RO' },
+};
+const json = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en" data-view={view} data-idx={idx} data-scr="top" data-static={lost ? '' : undefined}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {lost ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <meta name="theme-color" content="#EEEEEC" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={fontLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={fontLatinExt} as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      // First visit to the home page in this tab: start with the companion alone, before anything paints.
+      (function () {
+        var d = document.documentElement;
+        try {
+          if (
+            d.getAttribute('data-view') === 'home' &&
+            !d.hasAttribute('data-static') &&
+            !sessionStorage.getItem('seen') &&
+            !matchMedia('(prefers-reduced-motion: reduce)').matches
+          ) {
+            d.setAttribute('data-intro', 'dot');
+            // If the main script never arrives, show the page anyway.
+            setTimeout(function () {
+              if (!d.hasAttribute('data-ready')) d.removeAttribute('data-intro');
+            }, 6000);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    {view === 'home' && !lost && <script is:inline type="application/ld+json" set:html={json(person)} />}
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <!-- The capsule: the companion plus whatever controls the current screen needs. -->
+    <header class="dock" data-dock>
+      <nav class="capsule" aria-label="Main">
+        <a class="ball" href="/" data-ball aria-label="Home">
+          <span class="ball__gaze" aria-hidden="true">
+            <svg class="eyes" data-eyes viewBox="0 0 48 48">
+              <g class="eyes__open">
+                <rect x="16" y="18" width="5" height="10" rx="2.5"></rect>
+                <rect x="27" y="18" width="5" height="10" rx="2.5"></rect>
+              </g>
+              <path class="eyes__happy" d="M15 25.5q3.5-6.5 7 0M26 25.5q3.5-6.5 7 0"></path>
+            </svg>
+          </span>
+        </a>
+
+        <div class="seg seg--hello" data-seg="hello" aria-hidden="true" inert>
+          <span class="seg__say" data-say-text>{site.hello}</span>
+        </div>
+
+        <div class="seg seg--menu" data-seg="menu" data-open={openSeg === 'menu' ? '' : undefined} inert={openSeg !== 'menu'}>
+          <a class="mi" href="/work/" data-nav="work">Work</a>
+          <span class="sep sep--a" aria-hidden="true"></span>
+          <a class="mi" href="/about/" data-nav="about" aria-current={view === 'about' ? 'page' : undefined}>About</a>
+          <span class="sep sep--b" aria-hidden="true"></span>
+          <a class="mi" href="/contact/" data-nav="contact" aria-current={view === 'contact' ? 'page' : undefined}
+            >Contact</a
+          >
+        </div>
+
+        <div class="seg seg--pager" data-seg="pager" data-open={openSeg === 'pager' ? '' : undefined} inert={openSeg !== 'pager'}>
+          <button class="cb cb--first" type="button" data-prev aria-label="Previous project"><Icon name="left" /></button>
+          <a class="mi mi--label" href={`/work/${cur.id}/`} data-open-project>
+            <span class="num" data-count>{count}</span>
+            <span class="clip" data-short>{cur.data.short}</span>
+          </a>
+          <button class="cb" type="button" data-next aria-label="Next project"><Icon name="right" /></button>
+        </div>
+
+        <div class="seg seg--proj" data-seg="proj" data-open={openSeg === 'proj' ? '' : undefined} inert={openSeg !== 'proj'}>
+          <a class="mi" href={idx ? `/work/#${cur.id}` : '/work/'} data-all>All work</a>
+          <span class="sep" aria-hidden="true"></span>
+          <a class="mi mi--next" href={`/work/${next.id}/`} data-next-project>
+            <span class="muted mi__next-word">Next</span>
+            <span class="clip" data-next-short>{next.data.short}</span>
+            <Icon name="next" />
+          </a>
+        </div>
+
+        <div class="seg seg--count" data-seg="count" aria-hidden="true" inert>
+          <span class="seg__say num" data-count>{count}</span>
+        </div>
+      </nav>
+    </header>
+
+    <!-- The projects: out of focus in the distance, pulled into focus on Work. -->
+    <section class="far" data-far aria-label="Projects" inert={farOff}>
+      <div class="sr-only" role="heading" aria-level={view === 'work' ? 1 : 2} data-far-heading>Selected work</div>
+      {
+        projects.map((p, i) => {
+          const c = carousel(i, idx, n);
+          const d = p.data;
+          return (
+            <a
+              class:list={['card', { 'is-dark': d.dark }]}
+              href={`/work/${p.id}/`}
+              data-card
+              data-i={i}
+              data-d={c.d}
+              draggable="false"
+              inert={view === 'work' && Math.abs(c.d) >= 2}
+              style={`${scatterStyle(i)};${carouselStyle(i, idx, n)};--tint:${d.tint}`}
+            >
+              <span class="card__bob">
+                <span class="card__body">
+                  <span class="card__shot">
+                    {d.coverVideo ? (
+                      <video src={d.coverVideo} muted loop playsinline preload="metadata" aria-hidden="true" />
+                    ) : d.cover ? (
+                      <Picture
+                        src={d.cover}
+                        alt={d.coverAlt}
+                        formats={['avif', 'webp']}
+                        widths={[480, 760, 1140]}
+                        sizes="(max-width: 460px) 84vw, 380px"
+                        loading="eager"
+                        decoding="async"
+                        draggable="false"
+                      />
+                    ) : (
+                      <Fragment>
+                        <span class="card__num" aria-hidden="true">
+                          {pad2(i + 1)}
+                        </span>
+                        {site.showPlaceholders && <span class="cap" aria-hidden="true">your image · video loop</span>}
+                      </Fragment>
+                    )}
+                  </span>
+                  <span class="card__text">
+                    <span class="card__title">{d.short}</span>
+                    <span class="card__sum">{d.summary}</span>
+                    <span class="card__foot">
+                      <span class="card__meta">
+                        {d.year} · {d.platforms}
+                      </span>
+                      <span class="pill" aria-hidden="true">
+                        Open
+                        <Icon name="out" size="12px" />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </a>
+          );
+        })
+      }
+    </section>
+
+    <!-- Home: a few words around the companion. -->
+    <section class="home" data-home aria-label="Introduction" inert={view !== 'home'}>
+      <div class="home__top">
+        <span class="home__name">{site.name}</span>
+        <span>{site.role}</span>
+      </div>
+      <div class="home__center">
+        <p class="home__kicker">{lost ? '404' : site.kicker}</p>
+        <h1 class="home__title">{lost ? 'Nothing here. I looked everywhere.' : site.headline}</h1>
+      </div>
+      <div class="home__bottom">
+        <span>{site.location}</span>
+        <a class="home__link" href={site.linkedin} target="_blank" rel="noopener">LinkedIn <Icon name="out" size="11px" /></a>
+      </div>
+    </section>
+
+    <!-- Pages that scroll: About and one page per project. Only the one in use is kept in the page;
+         the others wait in <template> until they are opened. -->
+    <main id="main" tabindex="-1">
+      {view === 'about' ? <About /> : <template data-tpl="about"><About hidden /></template>}
+      {
+        projects.map((p, i) =>
+          view === 'project' && i === idx ? (
+            <Project entry={p} index={i} />
+          ) : (
+            <template data-tpl={`project:${p.id}`}>
+              <Project entry={p} index={i} hidden />
+            </template>
+          ),
+        )
+      }
+    </main>
+
+    <!-- Contact: a small panel above the capsule. A form and a "Book a call" row can be added here later. -->
+    <aside class="contact" data-contact aria-label="Contact" inert={view !== 'contact'}>
+      <h1 class="sr-only">Contact</h1>
+      <ul class="contact__list">
+        {
+          site.contact.map((c) => (
+            <li>
+              <a
+                class="row"
+                href={c.href}
+                target={c.href.startsWith('http') ? '_blank' : undefined}
+                rel={c.href.startsWith('http') ? 'noopener' : undefined}
+              >
+                {c.label}
+                <span class="row__value">
+                  {c.value}
+                  <Icon name={c.icon as 'out' | 'down'} size="11px" />
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </aside>
+
+    <div class="sr-only" aria-live="polite" data-announce></div>
+    <script is:inline type="application/json" id="app-data" set:html={json(appData)} />
+    <script>
+      import '../scripts/app.ts';
+    </script>
+  </body>
+</html>

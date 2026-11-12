@@ -1,0 +1,184 @@
+---
+// One project page: big image, title and facts, three short steps, more images, context and outcome.
+import type { CollectionEntry } from 'astro:content';
+import { Picture } from 'astro:assets';
+import { site } from '../data/site';
+import { isTodo, pad2 } from '../lib/layout';
+import Icon from './Icon.astro';
+
+interface Props {
+  entry: CollectionEntry<'projects'>;
+  index: number;
+  hidden?: boolean;
+}
+const { entry, index, hidden = false } = Astro.props;
+const p = entry.data;
+const no = pad2(index + 1);
+const show = site.showPlaceholders;
+const hero = p.hero ?? p.cover;
+const heroAlt = p.hero ? p.heroAlt : p.coverAlt;
+const heroVideo = p.heroVideo ?? (p.hero ? undefined : p.coverVideo);
+const facts = [
+  { label: 'Client', value: p.client },
+  { label: 'Role', value: p.role },
+  { label: 'Year', value: p.year },
+  { label: 'Platform', value: p.platforms },
+].filter((f) => show || !isTodo(f.value));
+const story = [
+  { label: 'Context', text: p.context },
+  { label: 'Outcome', text: p.outcome },
+].filter((s) => s.text && (show || !isTodo(s.text)));
+const HERO_WIDTHS = [800, 1280, 1720, 2400];
+const HERO_SIZES = '(max-width: 920px) calc(100vw - 60px), 820px';
+const HALF_WIDTHS = [480, 800, 1200];
+const HALF_SIZES = '(max-width: 680px) calc(100vw - 60px), 400px';
+---
+
+<article
+  class:list={['sheet', 'sheet--project', 'project', { 'is-dark': p.dark }]}
+  data-sheet={`project:${entry.id}`}
+  hidden={hidden}
+  style={`--tint:${p.tint}`}
+>
+  <section class="hero">
+    {
+      heroVideo ? (
+        <div class="shot">
+          <video data-loop src={heroVideo} muted loop playsinline preload="metadata" aria-label={heroAlt || p.title} />
+        </div>
+      ) : hero ? (
+        <div class="shot">
+          <Picture
+            src={hero}
+            alt={heroAlt}
+            formats={['avif', 'webp']}
+            widths={HERO_WIDTHS}
+            sizes={HERO_SIZES}
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+      ) : (
+        <div class="shot shot--empty shot--hero">
+          <span class="shot__num" aria-hidden="true">
+            {no}
+          </span>
+          {show && <span class="cap" aria-hidden="true">your image · video loop</span>}
+        </div>
+      )
+    }
+    <div class="hero__body">
+      <div class="hero__intro">
+        <h1 class="hero__title">{p.title}</h1>
+        <p class="hero__sum">{p.summary}</p>
+      </div>
+      <dl class="facts">
+        {
+          facts.map((f) => (
+            <div>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  {
+    p.steps.length > 0 && (
+      <div class="steps">
+        {p.steps.map((s, i) => (
+          <section class="step">
+            <span class="step__no">{pad2(i + 1)}</span>
+            <h2 class="step__title">{s.title}</h2>
+            <p class="step__text">{s.text}</p>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    p.gallery.length > 0 ? (
+      <div class="gallery">
+        {p.gallery.map((g) => (
+          <figure class:list={['frame', { 'frame--wide': g.wide }]}>
+            <div class="shot">
+              {g.video ? (
+                <video
+                  data-loop
+                  src={g.video}
+                  poster={g.poster?.src}
+                  muted
+                  loop
+                  playsinline
+                  preload="none"
+                  aria-label={g.alt || undefined}
+                />
+              ) : g.src ? (
+                <Picture
+                  src={g.src}
+                  alt={g.alt}
+                  formats={['avif', 'webp']}
+                  widths={g.wide ? HERO_WIDTHS : HALF_WIDTHS}
+                  sizes={g.wide ? HERO_SIZES : HALF_SIZES}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : null}
+            </div>
+          </figure>
+        ))}
+      </div>
+    ) : (
+      show && (
+        <div class="gallery">
+          <figure class="frame frame--wide">
+            <div class="shot shot--empty shot--wide">
+              <span class="cap" aria-hidden="true">your image · the key screen</span>
+            </div>
+          </figure>
+          <figure class="frame">
+            <div class="shot shot--empty shot--half">
+              <span class="cap" aria-hidden="true">your image · a detail</span>
+            </div>
+          </figure>
+          <figure class="frame">
+            <div class="shot shot--empty shot--half">
+              <span class="cap" aria-hidden="true">your video · one interaction</span>
+            </div>
+          </figure>
+        </div>
+      )
+    )
+  }
+
+  {
+    story.length > 0 && (
+      <section class="story">
+        {story.map((s) => (
+          <div class="story__col">
+            <h2 class="story__label">{s.label}</h2>
+            <p>{s.text}</p>
+          </div>
+        ))}
+      </section>
+    )
+  }
+
+  {
+    p.links.length > 0 && (
+      <ul class="links">
+        {p.links.map((l) => (
+          <li>
+            <a class="pill pill--link" href={l.url} target="_blank" rel="noopener">
+              {l.label}
+              <Icon name="out" size="12px" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</article>

@@ -1,0 +1,19 @@
+---
+interface Props {
+  name: 'out' | 'next' | 'left' | 'right' | 'down';
+  size?: string;
+}
+const { name, size = '1em' } = Astro.props;
+const paths = {
+  out: 'M4 12l8-8M6 4h6v6',
+  next: 'M3 8h10m-4-4 4 4-4 4',
+  left: 'm10 3-5 5 5 5',
+  right: 'm6 3 5 5-5 5',
+  down: 'M8 3v9m-4-4 4 4 4-4',
+};
+---
+
+<svg class="ic" viewBox="0 0 16 16" aria-hidden="true" style={`width:${size};height:${size}`}
+  ><path d={paths[name]} fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+  ></path></svg
+>

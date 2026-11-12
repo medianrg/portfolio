@@ -1,0 +1,29 @@
+---
+import { site } from '../data/site';
+
+interface Props {
+  hidden?: boolean;
+}
+const { hidden = false } = Astro.props;
+const a = site.about;
+---
+
+<div class="sheet sheet--about" data-sheet="about" hidden={hidden}>
+<article class="about">
+  <h1 class="sr-only">About {site.name}</h1>
+  <p class="about__lead">{a.lead}</p>
+  {a.paragraphs.map((p) => <p class:list={['about__p', { 'is-muted': p.muted }]}>{p.text}</p>)}
+  <h2 class="sr-only">Experience</h2>
+  <ul class="xp">
+    {
+      a.experience.map((e) => (
+        <li class="xp__row">
+          <span class="xp__years">{e.years}</span>
+          <span class="xp__company">{e.company}</span>
+          <span class="xp__role">{e.role}</span>
+        </li>
+      ))
+    }
+  </ul>
+</article>
+</div>
